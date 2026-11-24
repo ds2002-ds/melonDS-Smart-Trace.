@@ -1,0 +1,51 @@
+name: Build Smart Trace APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download source
+        run: |
+          curl -fL --retry 3 \
+            https://github.com/RicksCodes/MelonDS_Android_wLuaScript/archive/47793918f055a880dc5cb00a3d3d02153c8678c7.zip \
+            -o source.zip
+          mkdir upstream
+          unzip -q source.zip -d upstream
+          mv upstream/* project
+          unzip -qo melonDS_Smart_Trace_v0.1_patch_only.zip -d project
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK
+        run: |
+          sdkmanager "platforms;android-37" "build-tools;37.0.0" "ndk;28.0.13004108" "cmake;3.22.1"
+
+      - name: Build APK
+        working-directory: project
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleGitHubProdDebug -Pslim --no-daemon --stacktrace
+
+      - name: Export APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: melonDS-Smart-Trace-APK
+          path: project/app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
